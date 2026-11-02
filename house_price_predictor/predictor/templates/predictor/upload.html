@@ -1,0 +1,64 @@
+{% extends "predictor/base.html" %}
+{% block title %}Upload dataset &middot; House Price Predictor{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Predict house prices from your own data</h1>
+  <p>Upload a house-price dataset. The app cleans it, explores it, trains machine-learning models and lets you
+     predict the price of a new house in real time.</p>
+</section>
+
+<div class="grid two">
+  <section class="card">
+    <h2>1. Upload dataset</h2>
+    {% if form.non_field_errors %}
+      <div class="alert error">{% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}</div>
+    {% endif %}
+    {% for e in form.file.errors %}<div class="alert error">{{ e }}</div>{% endfor %}
+    <form method="post" enctype="multipart/form-data" class="stack" id="upload-form">
+      {% csrf_token %}
+      <label class="drop" for="file">
+        <span class="drop-icon">&#8679;</span>
+        <span class="drop-title">Choose a <b>.csv</b> or <b>.xlsx</b> file</span>
+        <span class="drop-sub" id="file-name">No file selected (max 25 MB)</span>
+        {{ form.file }}
+      </label>
+      <div class="field">
+        <label for="{{ form.target.id_for_label }}">Price column (optional)</label>
+        {{ form.target }}
+        <small>Leave empty to detect it automatically (SalePrice, price, ...).</small>
+      </div>
+      <button type="submit" class="btn primary" id="go">Upload &amp; analyse</button>
+      <div class="or"><span>or</span></div>
+      <button type="submit" name="use_sample" value="1" class="btn ghost">Use the sample dataset (1,480 houses)</button>
+      <p class="muted small" id="busy" hidden>Cleaning data and training models&hellip; this takes about 10 to 30 seconds.</p>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>What happens next?</h2>
+    <ol class="flow">
+      <li><b>Data summary</b> &ndash; preview, data types, missing values, duplicates and outliers.</li>
+      <li><b>Visual dashboard</b> &ndash; distributions, box plots, scatter plots and a correlation heatmap.</li>
+      <li><b>Model &amp; prediction</b> &ndash; accuracy (R&sup2;, RMSE, MAE) and a form for a live price prediction.</li>
+    </ol>
+    <h3>Expected file</h3>
+    <ul class="plain">
+      <li>One row per house, at least 50 rows (500+ recommended).</li>
+      <li>A numeric price column such as <code>SalePrice</code>.</li>
+      <li>Numerical and categorical columns (area, quality, neighbourhood, &hellip;).</li>
+      <li>Works with Kaggle&rsquo;s <i>House Prices &ndash; Advanced Regression Techniques</i> <code>train.csv</code>.</li>
+    </ul>
+    {% if has_run %}<a class="btn ghost" href="{% url 'summary' %}">Continue with the last analysis &rarr;</a>{% endif %}
+  </section>
+</div>
+
+<script>
+  var f = document.getElementById("file");
+  f.addEventListener("change", function () {
+    document.getElementById("file-name").textContent = f.files.length ? f.files[0].name : "No file selected (max 25 MB)";
+  });
+  document.getElementById("upload-form").addEventListener("submit", function () {
+    document.getElementById("busy").hidden = false;
+  });
+</script>
+{% endblock %}

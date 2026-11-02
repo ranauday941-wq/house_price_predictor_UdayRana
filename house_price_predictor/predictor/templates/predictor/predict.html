@@ -1,0 +1,74 @@
+{% extends "predictor/base.html" %}
+{% load ph_extras %}
+{% block title %}Prediction &middot; House Price Predictor{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div><h1>Model results &amp; price prediction</h1>
+  <p class="muted">Best model: <b>{{ r.best_model }}</b> &middot; trained on {{ r.train_rows }} houses, tested on {{ r.test_rows }} unseen houses</p></div>
+  <a class="btn ghost" href="{% url 'upload' %}">New dataset</a>
+</div>
+
+<div class="tiles">
+  <div class="tile good"><span>Accuracy (R&sup2; score)</span><b>{{ r.metrics.r2|pct }}%</b></div>
+  <div class="tile"><span>RMSE (typical error)</span><b>{{ r.metrics.rmse|money }}</b></div>
+  <div class="tile"><span>MAE (average error)</span><b>{{ r.metrics.mae|money }}</b></div>
+  <div class="tile"><span>MAPE (error in %)</span><b>{{ r.metrics.mape|floatformat:1 }}%</b></div>
+</div>
+
+<div class="grid two">
+  <section class="card">
+    <h2>Predict a house price</h2>
+    <p class="muted small">Enter the most important features. Every other feature uses a typical (median / most common) value.</p>
+    <form method="post" class="formgrid">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+          {% for e in field.errors %}<span class="err">{{ e }}</span>{% endfor %}
+        </div>
+      {% endfor %}
+      <div class="field full"><button type="submit" class="btn primary big">Predict price</button></div>
+    </form>
+  </section>
+
+  <section class="card result {% if prediction %}show{% endif %}">
+    <h2>Predicted {{ r.target }}</h2>
+    {% if prediction %}
+      <div class="price">{{ prediction.price|money }}</div>
+      <p class="muted">Likely range (&plusmn; one RMSE): <b>{{ prediction.low|money }}</b> &ndash; <b>{{ prediction.high|money }}</b></p>
+      {% if prediction.outside %}
+        <div class="alert warn">Outside the range seen in training: {{ prediction.outside|join:", " }}. The estimate is less reliable.</div>
+      {% endif %}
+    {% else %}
+      <p class="muted">Fill in the form and press <b>Predict price</b> to see the estimate here.</p>
+    {% endif %}
+    <h3>Most influential features</h3>
+    {% for i in r.importance|slice:":6" %}
+      <div class="barrow"><span><code>{{ i.feature }}</code></span>
+        <div class="meter wide"><i style="width:{{ i.importance|bar }}%"></i></div>
+        <b>{{ i.importance|pct }}%</b></div>
+    {% endfor %}
+  </section>
+</div>
+
+<section class="card">
+  <h2>Model comparison</h2>
+  <p class="muted small">The model with the best cross-validation R&sup2; is used for predictions. Test metrics come from houses the model never saw.</p>
+  <div class="scroll"><table class="data-table">
+    <thead><tr><th>Model</th><th>CV R&sup2;</th><th>Test R&sup2;</th><th>RMSE</th><th>MAE</th><th>MAPE</th></tr></thead>
+    <tbody>
+    {% for m in r.models %}
+      <tr class="{% if m.name == r.best_model %}best{% endif %}"><td><b>{{ m.name }}</b>{% if m.name == r.best_model %} <span class="chip cat">selected</span>{% endif %}</td>
+        <td>{{ m.cv_r2|floatformat:3 }}</td><td>{{ m.r2|floatformat:3 }}</td><td>{{ m.rmse|money }}</td><td>{{ m.mae|money }}</td><td>{{ m.mape|floatformat:1 }}%</td></tr>
+    {% endfor %}
+    </tbody></table></div>
+  <p class="muted small">This is a regression problem (predicting a number), so R&sup2;, RMSE, MAE and MAPE are used instead of accuracy / confusion matrix.</p>
+</section>
+
+<div class="grid two">
+  {% if 'models' in chart_names %}<figure class="card chartcard"><h3>Model comparison</h3><img class="chart" src="{% url 'chart' 'models' %}" alt="Model comparison"></figure>{% endif %}
+  {% if 'actual_pred' in chart_names %}<figure class="card chartcard"><h3>Actual vs predicted</h3><img class="chart" src="{% url 'chart' 'actual_pred' %}" alt="Actual vs predicted"></figure>{% endif %}
+</div>
+{% endblock %}

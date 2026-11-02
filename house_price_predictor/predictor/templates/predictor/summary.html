@@ -1,0 +1,115 @@
+{% extends "predictor/base.html" %}
+{% load ph_extras %}
+{% block title %}Data summary &middot; House Price Predictor{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Data summary</h1>
+    <p class="muted">File <b>{{ r.filename }}</b> &middot; price column <code>{{ r.target }}</code> &middot; processed in {{ r.seconds }} s</p>
+  </div>
+  <a class="btn primary" href="{% url 'dashboard' %}">Open dashboard &rarr;</a>
+</div>
+
+<div class="tiles">
+  <div class="tile"><span>Rows in file</span><b>{{ r.overview.rows_raw }}</b></div>
+  <div class="tile"><span>Rows after cleaning</span><b>{{ r.overview.rows_clean }}</b></div>
+  <div class="tile"><span>Columns (raw &rarr; used)</span><b>{{ r.overview.cols_raw }} &rarr; {{ r.overview.cols_model }}</b></div>
+  <div class="tile"><span>Numeric / categorical</span><b>{{ r.overview.numeric }} / {{ r.overview.categorical }}</b></div>
+  <div class="tile warn"><span>Duplicates removed</span><b>{{ r.overview.duplicates_removed }}</b></div>
+  <div class="tile good"><span>Missing values after processing</span><b>{{ r.overview.missing_after }}</b></div>
+</div>
+
+<section class="card">
+  <h2>Preview &ndash; first 10 rows of the uploaded file</h2>
+  <div class="scroll">{{ r.preview_html|safe }}</div>
+</section>
+
+<section class="card">
+  <h2>Missing values</h2>
+  <p class="callout">
+    The file contains <b>{{ r.overview.missing_raw }}</b> empty cells. In the columns used for modelling there were
+    <b>{{ r.overview.missing_kept_before }}</b> missing values; after imputation there are
+    <b class="okc">{{ r.overview.missing_after }}</b>.
+  </p>
+  {% if r.missing %}
+  <div class="scroll"><table class="data-table">
+    <thead><tr><th>Column</th><th>Missing (before)</th><th>% of rows</th><th>Treatment</th><th>Missing (after)</th></tr></thead>
+    <tbody>
+    {% for m in r.missing %}
+      <tr><td><code>{{ m.column }}</code></td><td>{{ m.before }}</td>
+          <td><div class="meter"><i style="width:{{ m.before_pct }}%"></i></div> {{ m.before_pct }}%</td>
+          <td>{{ m.treatment }}</td><td>{{ m.after }}</td></tr>
+    {% endfor %}
+    </tbody></table></div>
+  {% else %}<p class="okc">No missing values were found.</p>{% endif %}
+</section>
+
+<div class="grid two">
+  <section class="card">
+    <h2>Data cleaning</h2>
+    <ul class="plain">{% for line in r.log %}<li>{{ line }}</li>{% endfor %}</ul>
+    {% if r.dropped_columns %}
+      <h3>Irrelevant columns removed</h3>
+      <table class="data-table"><thead><tr><th>Column</th><th>Reason</th></tr></thead><tbody>
+        {% for d in r.dropped_columns %}<tr><td><code>{{ d.column }}</code></td><td>{{ d.reason }}</td></tr>{% endfor %}
+      </tbody></table>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Outlier detection</h2>
+    <p class="muted small">{{ r.outliers.total_iqr }} values lie outside the IQR fences (1.5 &times; IQR) and
+      {{ r.outliers.total_z }} have |Z-score| &gt; 3. Features are <b>capped to the IQR fences</b> inside the model pipeline;
+      extreme price outliers ({{ r.overview.target_outliers_removed }}) were removed.</p>
+    <table class="data-table"><thead><tr><th>Column</th><th>IQR</th><th>Z-score</th><th>Lower fence</th><th>Upper fence</th></tr></thead><tbody>
+      {% for o in r.outliers.top %}
+      <tr><td><code>{{ o.column }}</code></td><td>{{ o.iqr_outliers }}</td><td>{{ o.z_outliers }}</td>
+          <td>{{ o.lower_fence|floatformat:1 }}</td><td>{{ o.upper_fence|floatformat:1 }}</td></tr>
+      {% endfor %}
+    </tbody></table>
+  </section>
+</div>
+
+<div class="grid two">
+  <section class="card">
+    <h2>Feature selection (correlation with price)</h2>
+    {% for c in r.top_corr %}
+      <div class="barrow"><span><code>{{ c.feature }}</code></span>
+        <div class="meter wide"><i class="{% if c.corr < 0 %}neg{% endif %}" style="width:{{ c.corr|bar }}%"></i></div>
+        <b>{{ c.corr }}</b></div>
+    {% endfor %}
+    {% if r.selection.dropped_low_corr %}
+      <h3>Removed &ndash; weak correlation (|r| &lt; 0.05)</h3>
+      <p>{% for d in r.selection.dropped_low_corr %}<span class="chip">{{ d.column }} ({{ d.r }})</span>{% endfor %}</p>
+    {% endif %}
+    {% if r.selection.dropped_collinear %}
+      <h3>Removed &ndash; duplicate information (|r| &gt; 0.85)</h3>
+      <p>{% for d in r.selection.dropped_collinear %}<span class="chip">{{ d.column }} &asymp; {{ d.correlated_with }} ({{ d.r }})</span>{% endfor %}</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Data transformation</h2>
+    <ul class="plain">
+      <li><b>Scaling:</b> {{ r.overview.numeric }} numeric columns standardised with <code>StandardScaler</code>.</li>
+      <li><b>Encoding:</b> {{ r.overview.categorical }} categorical columns One-Hot encoded &rarr; {{ r.overview.encoded_features }} model inputs in total.</li>
+      <li><b>Imputation:</b> median for numeric, most-frequent value (mode) for categorical columns.</li>
+      <li><b>Target:</b> <code>log(1 + {{ r.target }})</code> is learned to handle the skewed price distribution.</li>
+      <li><b>Split:</b> {{ r.train_rows }} training rows / {{ r.test_rows }} test rows.</li>
+    </ul>
+    <h3>Columns used</h3>
+    <p>{% for c in r.kept_numeric %}<span class="chip num">{{ c }}</span>{% endfor %}{% for c in r.kept_categorical %}<span class="chip cat">{{ c }}</span>{% endfor %}</p>
+    <p class="muted small"><span class="chip num">numeric</span> <span class="chip cat">categorical</span></p>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Column information</h2>
+  <details><summary>Show all {{ r.dtypes|length }} columns</summary>
+  <div class="scroll"><table class="data-table"><thead><tr><th>Column</th><th>Type</th><th>Non-null</th><th>Unique</th><th>Role</th></tr></thead><tbody>
+    {% for d in r.dtypes %}<tr><td><code>{{ d.column }}</code></td><td>{{ d.dtype }}</td><td>{{ d.non_null }}</td><td>{{ d.unique }}</td><td>{{ d.role }}</td></tr>{% endfor %}
+  </tbody></table></div></details>
+  <details><summary>Descriptive statistics of numeric columns</summary>
+  <div class="scroll">{{ r.describe_html|safe }}</div></details>
+</section>
+{% endblock %}

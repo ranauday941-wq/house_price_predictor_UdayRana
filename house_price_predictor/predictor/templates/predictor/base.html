@@ -1,0 +1,32 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}House Price Predictor{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'predictor/style.css' %}">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="{% url 'upload' %}"><span class="logo">&#8962;</span> House Price Predictor</a>
+    <nav class="steps">
+      <a href="{% url 'upload' %}" class="{% if step == 'upload' %}on{% endif %}"><b>1</b> Upload</a>
+      {% if has_run %}
+        <a href="{% url 'summary' %}" class="{% if step == 'summary' %}on{% endif %}"><b>2</b> Data summary</a>
+        <a href="{% url 'dashboard' %}" class="{% if step == 'dashboard' %}on{% endif %}"><b>3</b> Dashboard</a>
+        <a href="{% url 'predict' %}" class="{% if step == 'predict' %}on{% endif %}"><b>4</b> Predict</a>
+      {% else %}
+        <span class="off"><b>2</b> Data summary</span>
+        <span class="off"><b>3</b> Dashboard</span>
+        <span class="off"><b>4</b> Predict</span>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  {% block content %}{% endblock %}
+</main>
+<footer class="foot wrap">Data Mining &amp; Machine Learning project &middot; Python &middot; Django &middot; scikit-learn</footer>
+</body>
+</html>

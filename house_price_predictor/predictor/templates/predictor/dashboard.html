@@ -1,0 +1,43 @@
+{% extends "predictor/base.html" %}
+{% block title %}Dashboard &middot; House Price Predictor{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div><h1>Visual analytics dashboard</h1>
+  <p class="muted">All charts are generated from your uploaded file.</p></div>
+  <a class="btn primary" href="{% url 'predict' %}">Go to prediction &rarr;</a>
+</div>
+
+<section class="card">
+  <h2>Explore a column</h2>
+  <form method="get" class="inline">
+    <label for="feature">Column</label>
+    <select name="feature" id="feature" class="input" onchange="this.form.submit()">
+      {% for c in columns %}<option value="{{ c }}" {% if c == feature %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+    <noscript><button class="btn ghost" type="submit">Show</button></noscript>
+  </form>
+  <img class="chart" src="{% url 'explorer' %}?feature={{ feature|urlencode }}" alt="Chart for {{ feature }}">
+</section>
+
+<h2 class="section">Exploratory data analysis</h2>
+<div class="grid charts">
+  {% for c in eda %}
+  <figure class="card chartcard {% if c.name == 'heatmap' or c.name == 'scatter' %}tall{% endif %}">
+    <h3>{{ c.title }}</h3>
+    <img class="chart" src="{% url 'chart' c.name %}" alt="{{ c.title }}">
+    <figcaption>{{ c.caption }}</figcaption>
+  </figure>
+  {% endfor %}
+</div>
+
+<h2 class="section">Model diagnostics</h2>
+<div class="grid charts">
+  {% for c in diagnostics %}
+  <figure class="card chartcard">
+    <h3>{{ c.title }}</h3>
+    <img class="chart" src="{% url 'chart' c.name %}" alt="{{ c.title }}">
+    <figcaption>{{ c.caption }}</figcaption>
+  </figure>
+  {% endfor %}
+</div>
+{% endblock %}
